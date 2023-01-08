@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+
+from bluepy.btle import Scanner, DefaultDelegate
+from datetime import datetime
+import json
+
+import ble2mqtt.devices
+import ble2mqtt
+
+class ScanDelegate(DefaultDelegate):
+    def __init__(self, devices):
+        DefaultDelegate.__init__(self)
+        self.devices = devices
+
+    def handleDiscovery(self, dev, isNewDev, isNewData):
+
+        self.devices.manage(dev)
+
+devices = ble2mqtt.devices.Devices()
+delegate = ScanDelegate(devices)
+scanner = Scanner().withDelegate(delegate)
+
+mqtt_client = ble2mqtt.Mqtt('ble2mqtt')
+
+start = datetime.now()
+while 1:
+
+    scanner.scan(10.0, passive=True)
+
+    msgs = []
+
+    for dev in devices.each_supported_device():
+        secs = dev.last_update_seconds_ago()
+        average, count = dev.average(True)
+        #print("Device name: {} addr: {} average = {} count = {} ({})".format(dev.name, dev.addr, average, count, secs))
+
+        status = "ON"
+        if count < 1 or secs > 60:
+            status = "OFF"
+
+        if average is not None:
+            average = round(average, 2)
+
+        output = {
+            "name": dev.name,
+            "address": dev.addr,
+            "rssi": average,
+            "count": count,
+            "last_update": round(secs,2),
+            "status": status,
+        }
+
+        json_string = json.dumps(output)
+        topic = "ble2mqtt/{}".format(dev.name)
+        print("Publishing {} to {}".format(json_string, topic))
+        #mqtt_client.publish(topic, json_string)
+
+        msgs.append({'topic': topic, 'payload': json_string})
+    mqtt_client.publish_multiple(msgs)
