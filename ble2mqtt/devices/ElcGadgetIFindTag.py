@@ -1,3 +1,5 @@
+from datetime import datetime
+
 class Metric(object):
     def __init__(self, val, timestamp=None):
         self.value = val
