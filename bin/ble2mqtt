@@ -25,7 +25,7 @@ mqtt_client = ble2mqtt.Mqtt('ble2mqtt')
 start = datetime.now()
 while 1:
 
-    scanner.scan(10.0, passive=True)
+    scanner.scan(60.0, passive=True)
 
     msgs = []
 
