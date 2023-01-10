@@ -9,8 +9,7 @@ setup(
     author_email='null@example.com',
     license='GPL2',
     packages=['ble2mqtt', 'ble2mqtt.devices'],
-    install_requires=['bluepy',
-                      ],
+    install_requires=['bluepy', 'paho-mqtt' ],
 
     classifiers=[
         'License :: OSI Approved :: GPL2',  
