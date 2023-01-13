@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
-from bluepy.btle import Scanner, DefaultDelegate
+from bluepy.btle import Scanner, DefaultDelegate, BTLEManagementError
 from datetime import datetime
 import json
+import time
 
 import ble2mqtt.devices
 import ble2mqtt
@@ -24,8 +25,16 @@ mqtt_client = ble2mqtt.Mqtt('ble2mqtt')
 
 start = datetime.now()
 while 1:
-
-    scanner.scan(60.0, passive=True)
+    # TODO: If not already done, figure out which bluetooth device to use and create the scanner object
+    # with it.
+    try:
+        scanner.scan(60.0, passive=True)
+    except BTLEManagementError as e:
+        print("Could not start BLE scan: {} - retrying...".format(e))
+        mqtt_client.publish_offline()
+        # TODO: forget which bluetooth device we were on, so on nect loop we'll re-calculate it
+        time.sleep(1)
+        continue
 
     msgs = []
 

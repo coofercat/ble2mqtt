@@ -17,12 +17,30 @@ class BaseDeviceType(object):
         self.name = name
         self.last_update = datetime.now()
 
+        self.battery = None
+        self.battery_cache_time = datetime.now()
+
         self.metrics = []
 
     def rssi(self, val):
         """ Insert an RSSI metric """
         self.metrics.append(Metric(val))
         self.last_update = datetime.now()
+
+    def fetch_battery_level(self):
+        """ Connect to the device, get the battery level and return it """
+        return None
+
+    def battery_level(self):
+        """ Return a cached measurment of the battery level of the device """
+        """ Fetching battery takes time and effort, so cache the result """
+        """ and only re-fetch it if necessary """
+        diff = datetime.now() - self.battery_cache_time
+        if diff.total_seconds() > 600:
+            self.battery = self.fetch_battery_level()
+            self.battery_cache_time = datetime.now()
+
+        return self.battery
 
     def last_update_seconds_ago(self):
         """ Returns the fractional number of seconds since the last insert of a metric """

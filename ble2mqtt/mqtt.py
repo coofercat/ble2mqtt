@@ -12,12 +12,11 @@ class Mqtt(object):
         self.tls = None
 
         self.status_topic = 'ble2mqtt'
+        self.status_online = False
 
         self.mqtt_client = paho.mqtt.client.Client()
         self.mqtt_client.max_inflight_messages_set(5)
         self.mqtt_client.max_queued_messages_set(5)
-
-        self.mqtt_client.will_set(self.status_topic, 'OFF', 0, True)
 
         self.mqtt_client.on_connect=self.on_connect
         self.mqtt_client.on_disconnect=self.on_disconnect
@@ -27,10 +26,20 @@ class Mqtt(object):
 
         self.mqtt_client.loop_start()
 
+    def publish_online(self):
+        if self.connected:
+            self.mqtt_client.publish(self.status_topic, 'ON', 0, False)
+        self.status_online = True
+
+    def publish_offline(self):
+        if self.connected:
+            self.mqtt_client.will_set(self.status_topic, 'OFF', 0, True)
+        self.status_online = False
+
     def on_connect(self, client, userdata, flags, rc):
         print("Connected to MQTT")
         self.connected = True
-        self.mqtt_client.publish(self.status_topic, 'ON', 0, False)
+        self.publish_online()
 
     def on_disconnect(self, client, userdata,  rc):
         print("Disconnected from MQTT")
@@ -52,9 +61,14 @@ class Mqtt(object):
         """ This makes its own connection, publishes and disconnects - in additionl to our other """
         """ connection which just provides status """
         self._connect()
-        return paho.mqtt.publish.multiple(msgs, hostname=self.hostname, port=self.port, client_id=self.client_id)
+        out = paho.mqtt.publish.multiple(msgs, hostname=self.hostname, port=self.port, client_id=self.client_id)
+        if out:
+            if self.status_online == False:
+                self.publish_online()
+        else:
+            self.publish_offline()
+        return out
 
     def __del__(self):
-        if self.connected:
-            self.mqtt_client.publish(self.status_topic, 'OFF', 0, False)
+        self.publish_offline()
 
