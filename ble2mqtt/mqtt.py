@@ -62,11 +62,7 @@ class Mqtt(object):
         """ connection which just provides status """
         self._connect()
         out = paho.mqtt.publish.multiple(msgs, hostname=self.hostname, port=self.port, client_id=self.client_id)
-        if out:
-            if self.status_online == False:
-                self.publish_online()
-        else:
-            self.publish_offline()
+        self.publish_online()
         return out
 
     def __del__(self):
