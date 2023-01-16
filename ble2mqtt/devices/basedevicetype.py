@@ -1,4 +1,5 @@
 from datetime import datetime
+import bluepy
 
 class Metric(object):
     """ An item in the list of metrics stored by the device class """
@@ -19,6 +20,10 @@ class BaseDeviceType(object):
 
         self.battery = None
         self.battery_cache_time = datetime.now()
+        self.battery_cache_ttl = 600
+
+        # Not all devices can support this UUID, but if they do, we can fetch battery levels easily
+        self.battery_uuid = 0x180f
 
         self.metrics = []
 
@@ -27,16 +32,48 @@ class BaseDeviceType(object):
         self.metrics.append(Metric(val))
         self.last_update = datetime.now()
 
-    def fetch_battery_level(self):
-        """ Connect to the device, get the battery level and return it """
-        return None
+    def _disconnect_ble(self, device):
+        """ Disconnect, even if not really connected ;-) """
+        if device is None:
+            return
+        try:
+            device.disconnect()
+        except bluepy.btle.BTLEDisconnectError as e:
+            pass
+
+    def fetch_battery_level(self, iface=0):
+        """ Immediately connect to a device, get its battery level and return it """
+        if self.battery_uuid is None:
+            # This device does not support reading the battery level
+            return None
+        battery = None
+        dev = bluepy.btle.Peripheral()
+        try:
+            dev.connect(self.addr, bluepy.btle.ADDR_TYPE_PUBLIC, iface)
+        except bluepy.btle.BTLEDisconnectError as e:
+            #print("Error connecting to {}: {}".format(self.addr, e))
+            return None
+
+        try:
+            service = dev.getServiceByUUID(self.battery_uuid)
+        except bluepy.btle.BTLEGattError:
+            # battery service not found
+            self._disconnect_ble(dev)
+            return None
+
+        char = getCharacteristics()[0]
+        val = char.read()
+        battery = int.from_bytes(val, byteorder='little', signed=True)
+
+        self._disconnect_ble(dev)
+        return battery
 
     def battery_level(self):
         """ Return a cached measurment of the battery level of the device """
         """ Fetching battery takes time and effort, so cache the result """
         """ and only re-fetch it if necessary """
         diff = datetime.now() - self.battery_cache_time
-        if diff.total_seconds() > 600:
+        if diff.total_seconds() > self.battery_cache_ttl:
             self.battery = self.fetch_battery_level()
             self.battery_cache_time = datetime.now()
 
